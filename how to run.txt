@@ -1,0 +1,11 @@
+installations
+
+pip install fastapi
+pip install "uvicorn[standard]"
+python -m pip install pymongo (Might wanna put --upgrade flag at the end if it doesnt work)
+
+make emulator work with the dev server
+adb reverse tcp:8163 tcp:8163 (Change the ports to what the server says when starting it)
+
+to run
+uvicorn main:app --reload
