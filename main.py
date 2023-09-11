@@ -42,7 +42,7 @@ async def getUserInfo(userName: str):
     return {"body": data}
 
 @app.post("/userItems/{userName}/{storageLocation}")
-async def postNewItem(userName: str, storageLocation: str, foodItem:FoodItem):
+async def addItemToKitchen(userName: str, storageLocation: str, foodItem:FoodItem):
 
     assert storageLocation in ("Fridge", "Freezer", "Shelf")
     col.update_one({"User": userName}, {"$push": {storageLocation: dict(foodItem)}})
