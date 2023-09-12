@@ -45,6 +45,10 @@ async def getUserInfo(userName: str):
 async def addItemToKitchen(userName: str, storageLocation: str, foodItem:FoodItem):
 
     assert storageLocation in ("Fridge", "Freezer", "Shelf")
-    col.update_one({"User": userName}, {"$push": {storageLocation: dict(foodItem)}})
+    result = col.update_one({"User": userName}, {"$push": {storageLocation: dict(foodItem)}})
+
+    if result.matched_count == 0:
+        raise ValueError(f'user "{userName}" not found')
+    # return result.matched_count > 0
 
 
