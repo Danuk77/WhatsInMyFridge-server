@@ -69,5 +69,9 @@ async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
     newItem['_id'] = ObjectId()
 
     assert storageLocation in ("Fridge", "Freezer", "Shelf")
-    col.update_one({"User": userName}, {
-                   "$push": {storageLocation: newItem}})
+    result = col.update_one({"User": userName}, {
+                            "$push": {storageLocation: dict(foodItem)}})
+
+    if result.matched_count == 0:
+        raise ValueError(f'user "{userName}" not found')
+    # return result.matched_count > 0
