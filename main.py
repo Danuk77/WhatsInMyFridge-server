@@ -28,11 +28,14 @@ try:
 except Exception as e:
     print(e)
 
+
 class FoodItem(BaseModel):
     name: str
     type: str
     expirationDate: str
     startDate: str
+    quantity: int
+    expirationType: str
 
 
 # Get the users information
@@ -41,10 +44,10 @@ async def getUserInfo(userName: str):
     data = col.find_one({"User": userName}, {'_id': 0})
     return {"body": data}
 
+
 @app.post("/userItems/{userName}/{storageLocation}")
-async def postNewItem(userName: str, storageLocation: str, foodItem:FoodItem):
+async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
 
     assert storageLocation in ("Fridge", "Freezer", "Shelf")
-    col.update_one({"User": userName}, {"$push": {storageLocation: dict(foodItem)}})
-
-
+    col.update_one({"User": userName}, {
+                   "$push": {storageLocation: dict(foodItem)}})
