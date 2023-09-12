@@ -66,12 +66,15 @@ async def getUserInfo(userName: str):
 async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
 
     newItem = dict(foodItem)
-    newItem['_id'] = ObjectId()
+    newID = ObjectId()
+    newItem['id'] = newID
 
     assert storageLocation in ("Fridge", "Freezer", "Shelf")
     result = col.update_one({"User": userName}, {
-                            "$push": {storageLocation: dict(foodItem)}})
+                            "$push": {storageLocation: dict(newItem)}})
 
     if result.matched_count == 0:
         raise ValueError(f'user "{userName}" not found')
     # return result.matched_count > 0
+
+    return {"id": str(newID)}
