@@ -38,6 +38,8 @@ class FoodItem(BaseModel):
     quantity: int
     expirationType: str
 
+STORAGE_LOCATIONS = ("Fridge", "Freezer", "Shelf")
+
 # Recursively convert objectID's to string
 
 
@@ -69,7 +71,7 @@ async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
     newID = ObjectId()
     newItem['id'] = newID
 
-    assert storageLocation in ("Fridge", "Freezer", "Shelf")
+    assert storageLocation in STORAGE_LOCATIONS
     result = col.update_one({"User": userName}, {
                             "$push": {storageLocation: dict(newItem)}})
 
@@ -78,3 +80,26 @@ async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
     # return result.matched_count > 0
 
     return {"id": str(newID)}
+
+
+@app.delete("/userItems/{userName}/{storageLocation}/{id}")
+async def removeItem(userName: str, storageLocation: str, id: str):
+
+    id = ObjectId(id)
+    
+    assert storageLocation in STORAGE_LOCATIONS
+    
+    # look for the item
+    result = col.update_one({"User": userName}, {
+        "$pull": {
+            storageLocation: {
+                "id": {
+                    "$eq" : id
+                }
+            }
+        }
+    })
+
+    if result.modified_count != 1:
+        raise ValueError(f"{result.modified_count} items were modified!")
+
