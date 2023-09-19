@@ -1,5 +1,5 @@
 from typing import Union
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pydantic import BaseModel
@@ -37,6 +37,15 @@ class FoodItem(BaseModel):
     startDate: str
     quantity: int
     expirationType: str
+
+
+class NewLocation(BaseModel):
+    newLocation: str
+
+
+class editValues(BaseModel):
+    field: str
+    newValue: str
 
 
 STORAGE_LOCATIONS = ("Fridge", "Freezer", "Shelf")
@@ -82,6 +91,8 @@ async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
 
     return {"id": str(newID)}
 
+# delete food item
+
 
 @app.delete("/userItems/{userName}/{storageLocation}/{id}")
 async def removeItem(userName: str, storageLocation: str, id: str):
@@ -103,3 +114,75 @@ async def removeItem(userName: str, storageLocation: str, id: str):
 
     if result.modified_count != 1:
         raise ValueError(f"{result.modified_count} items were modified!")
+
+
+@app.post("/userItems/{userName}/{storageLocation}/{id}")
+async def moveItem(userName: str, storageLocation: str, id: str, values: NewLocation):
+    """Move food item from one storage location to another
+
+    Args:
+        userName (str): User name
+        storageLocation (str): Move from this location
+        id (str): id of food item
+        values (NewLocation): Obj containing field `newLocation` - move to this location
+
+    Raises:
+        HTTPException: 
+        RuntimeError: Unable to update DB properly
+    """
+    try:
+        id = ObjectId(id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if storageLocation not in STORAGE_LOCATIONS:
+        raise HTTPException(
+            status_code=404, detail=f"Storage location {storageLocation} does not exist")
+    if values.newLocation not in STORAGE_LOCATIONS:
+        raise HTTPException(
+            status_code=400, detail=f"Storage location {values.newLocation} does not exist")
+
+    query = col.aggregate([
+        {"$match": {"User": userName}},   # all documents with this userName
+        # remove other fields that we don't need
+        {"$project": {storageLocation: 1}},
+        # duplicate for each item in the storageLocation array,
+        {"$unwind": f"${storageLocation}"},
+        # with the array replaced with that item
+        {"$match": {f"{storageLocation}.id": id}},  # match with the correct id
+    ])
+
+    # unwrap from iterator and get the item only
+    item = next((x[storageLocation] for x in query), None)
+
+    # check that item exists
+    if not item:
+        raise HTTPException(
+            status_code=404, detail=f"Item with id {id} does not exist in {storageLocation} for user {userName}")
+
+    # update db. "$elemMatch" used in case the db has changed since the query
+    result = col.update_one({"User": userName, storageLocation: {"$elemMatch": item}},
+                            {"$pull": {storageLocation: item},
+                             "$push": {values.newLocation: item}})
+
+    if result.modified_count != 1:
+        raise RuntimeError(f"{result.modified_count} items were modified!")
+
+
+@app.post("/userItems/edit/{userName}/{storageLocation}/{id}")
+async def editItem(userName: str, storageLocation: str, id: str, editInfo: editValues):
+
+    # Verify that the id is of correct format
+    try:
+        id = ObjectId(id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    # Write the error checking stuff here
+
+    query = {"User": userName, f"{storageLocation}.id": id}
+    update = {"$set": {f"{storageLocation}.$.{editInfo.field}": editInfo.newValue}}
+
+    col.update_one(query, update)
+
+    return "Success"
