@@ -38,6 +38,7 @@ class FoodItem(BaseModel):
     quantity: int
     expirationType: str
 
+
 STORAGE_LOCATIONS = ("Fridge", "Freezer", "Shelf")
 
 # Recursively convert objectID's to string
@@ -86,15 +87,15 @@ async def postNewItem(userName: str, storageLocation: str, foodItem: FoodItem):
 async def removeItem(userName: str, storageLocation: str, id: str):
 
     id = ObjectId(id)
-    
+
     assert storageLocation in STORAGE_LOCATIONS
-    
+
     # look for the item
     result = col.update_one({"User": userName}, {
         "$pull": {
             storageLocation: {
                 "id": {
-                    "$eq" : id
+                    "$eq": id
                 }
             }
         }
@@ -102,4 +103,3 @@ async def removeItem(userName: str, storageLocation: str, id: str):
 
     if result.modified_count != 1:
         raise ValueError(f"{result.modified_count} items were modified!")
-
