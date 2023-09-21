@@ -43,11 +43,6 @@ class NewLocation(BaseModel):
     newLocation: str
 
 
-class editValues(BaseModel):
-    field: str
-    newValue: str
-
-
 STORAGE_LOCATIONS = ("Fridge", "Freezer", "Shelf")
 
 # Recursively convert objectID's to string
@@ -170,7 +165,7 @@ async def moveItem(userName: str, storageLocation: str, id: str, values: NewLoca
 
 
 @app.post("/userItems/edit/{userName}/{storageLocation}/{id}")
-async def editItem(userName: str, storageLocation: str, id: str, editInfo: editValues):
+async def editItem(userName: str, storageLocation: str, id: str, newInfo: FoodItem):
 
     # Verify that the id is of correct format
     try:
@@ -178,11 +173,42 @@ async def editItem(userName: str, storageLocation: str, id: str, editInfo: editV
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    # Write the error checking stuff here
+    # Convert the item into a dictionary
+    newValues = dict(newInfo)
+    newValues['id'] = id
 
+    # Mongo query elements
     query = {"User": userName, f"{storageLocation}.id": id}
-    update = {"$set": {f"{storageLocation}.$.{editInfo.field}": editInfo.newValue}}
+    update = {"$set": {f"{storageLocation}.$": newValues}}
 
-    col.update_one(query, update)
+    # Validating the information the user has sent
+    assert storageLocation in STORAGE_LOCATIONS
 
-    return "Success"
+    try:
+        # Check if an item with the specific id at the storage location exist
+        if (not col.find_one(query)):
+            raise HTTPException(
+                status_code=404, detail=f"Item with id {id} does not exist in {storageLocation} for user {userName}")
+    except HTTPException as e:
+        raise
+    else:
+        # If no exceptions handle the update
+        col.update_one(query, update)
+
+
+# Function for general testing mongodb usage
+@app.get("/userItems/edit/{userName}/{storageLocation}/{id}")
+async def testing(userName: str, storageLocation: str, id: str):
+
+    # Verify that the id is of correct format
+    try:
+        id = ObjectId(id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    assert storageLocation in STORAGE_LOCATIONS
+    query = {"User": userName, f"{storageLocation}.id": id}
+
+    result = col.find_one(query)
+
+    print(result)
